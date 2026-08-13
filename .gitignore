@@ -1,0 +1,17 @@
+# Local/editor files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local test/build output
+__pycache__/
+*.pyc
+*.log
+
+# Never commit YYB runtime data or credentials
+data/
+*.db
+*.sqlite
+*.sqlite3
+.env
