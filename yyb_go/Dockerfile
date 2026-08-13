@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+﻿# syntax=docker/dockerfile:1
 
 ARG YYB_REPO=https://github.com/525815266/YYB-Go-Enhanced.git
 ARG YYB_REF=dd0081ef393a3d3024b145dd038ea1192fdc00c5
@@ -12,12 +12,16 @@ RUN apk add --no-cache ca-certificates git
 
 WORKDIR /src
 
-# Pin the upstream revision so an Add-on version always builds reproducibly.
+# 固定上游版本，确保同一 Add-on 版本每次构建结果一致
 RUN git clone --filter=blob:none "${YYB_REPO}" . \
     && git checkout --detach "${YYB_REF}" \
     && test "$(git rev-parse HEAD)" = "${YYB_REF}"
 
+# 使用 Go 模块镜像，避免 HAOS 构建时访问 proxy.golang.org 超时
+ENV GOPROXY=https://goproxy.cn,direct
+
 RUN go mod download
+
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -trimpath \
     -ldflags="-s -w" \
