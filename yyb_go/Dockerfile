@@ -1,4 +1,4 @@
-﻿# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1
 
 ARG YYB_REPO=https://github.com/525815266/YYB-Go-Enhanced.git
 ARG YYB_REF=dd0081ef393a3d3024b145dd038ea1192fdc00c5
