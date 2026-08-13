@@ -52,8 +52,9 @@ COPY run.sh /run.sh
 
 RUN chmod 0755 /app/yyb-go /run.sh \
     && find /app/resource -type d -exec chmod 0755 {} + \
-    && find /app/resource -type f -exec chmod 0644 {} +
-
+    && find /app/resource -type f -exec chmod 0644 {} + \
+    && chown -R yyb:yyb /app/resource
+    
 EXPOSE 8080 8000
 
 ENTRYPOINT ["/run.sh"]

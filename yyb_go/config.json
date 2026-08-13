@@ -1,6 +1,6 @@
 {
   "name": "YYB-Go Enhanced",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "slug": "yyb_go",
   "description": "YYB-Go Enhanced 的 Home Assistant OS Add-on 封装，支持微信扫码登录、账号管理、Token 保活和青龙联动。",
   "url": "https://github.com/windowlife/yyb_go_addons",
