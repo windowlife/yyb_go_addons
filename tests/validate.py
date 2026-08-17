@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ADDON = ROOT / "yyb_go"
-EXPECTED_REF = "9fc25bad7c099a861876cd78460c496df4fccc85"
+EXPECTED_REF = "main"
 EXPECTED_VERSION = "1.1.0"
 
 
@@ -77,8 +77,13 @@ def validate_config() -> None:
 
 def validate_dockerfile() -> None:
     text = require_file(ADDON / "Dockerfile")
+
     if f"ARG YYB_REF={EXPECTED_REF}" not in text:
-        fail("Dockerfile is not pinned to the expected upstream revision")
+        fail("Dockerfile does not use the expected upstream branch")
+
+    if 'git clone --depth=1 --branch "${YYB_REF}" "${YYB_REPO}" .' not in text:
+        fail("Dockerfile must clone the configured upstream branch")
+
     for required in (
         "FROM golang:1.23-alpine AS build",
         "ENV GOPROXY=https://goproxy.cn,direct",
@@ -88,9 +93,15 @@ def validate_dockerfile() -> None:
     ):
         if required not in text:
             fail(f"Dockerfile missing: {required}")
-    for legacy in ("nginx:1.27-alpine", "apache2-utils", "EXPOSE 8080"):
+
+    for legacy in (
+        "nginx:1.27-alpine",
+        "apache2-utils",
+        "EXPOSE 8080",
+    ):
         if legacy in text:
             fail(f"legacy nginx packaging remains in Dockerfile: {legacy}")
+
     if "chown -R yyb:yyb /app/resource" not in text:
         fail("resource tree must be writable by yyb user")
 
