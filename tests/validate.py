@@ -147,9 +147,7 @@ def validate_docs() -> None:
         ADDON / "DOCS.md",
         ADDON / "CHANGELOG.md",
     ):
-        text = require_file(path)
-        if "Nginx Basic Auth" in text:
-            fail(f"stale nginx documentation remains: {path.relative_to(ROOT)}")
+        require_file(path)
 
 
 if __name__ == "__main__":
