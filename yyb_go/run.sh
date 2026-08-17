@@ -98,7 +98,8 @@ prepare_persistent_data() {
         if [ -L "${resource}" ]; then
             rm -f "${resource}"
         elif [ -e "${resource}" ]; then
-            # Preserve any upstream seed files only on first migration.
+            # Preserve upstream seed files only when the HAOS data directory is
+            # still empty. Existing user data always wins during upgrades.
             if [ -z "$(find "${persistent}" -mindepth 1 -print -quit 2>/dev/null)" ]; then
                 cp -R "${resource}/." "${persistent}/" 2>/dev/null || true
                 chown -R yyb:yyb "${persistent}"
@@ -110,8 +111,6 @@ prepare_persistent_data() {
     done
 }
 
-WEB_USER="$(option web_user admin)"
-WEB_PASSWORD="$(option web_password '')"
 KEEPALIVE_INTERVAL="$(option keepalive_interval 30m)"
 KEEPALIVE_AHEAD="$(option keepalive_ahead 45m)"
 QL_URL="$(option ql_url '')"
@@ -119,16 +118,26 @@ QL_CLIENT_ID="$(option ql_client_id '')"
 QL_CLIENT_SECRET="$(option ql_client_secret '')"
 YYB_QINGLONG_SERVER="$(option yyb_qinglong_server '')"
 YYB_QINGLONG_REPO="$(option yyb_qinglong_repo 'SuperNaiBA_YYB-GO-Script,525815266_YYB-Go-Enhanced/scripts')"
+YYB_ADMIN_USER="$(option yyb_admin_user '')"
+YYB_ADMIN_PASSWORD="$(option yyb_admin_password '')"
+YYB_COOKIE_SECURE="$(option yyb_cookie_secure false)"
 
-[ -n "${WEB_USER}" ] || fatal "web_user 不能为空"
-[ -n "${WEB_PASSWORD}" ] || fatal "首次启动前请在 Add-on 配置中设置 web_password"
+case "${YYB_COOKIE_SECURE}" in
+    true|false) ;;
+    *) fatal "yyb_cookie_secure 只能是 true 或 false" ;;
+esac
+
+if { [ -n "${YYB_ADMIN_USER}" ] && [ -z "${YYB_ADMIN_PASSWORD}" ]; } \
+    || { [ -z "${YYB_ADMIN_USER}" ] && [ -n "${YYB_ADMIN_PASSWORD}" ]; }; then
+    fatal "yyb_admin_user 和 yyb_admin_password 必须同时填写，或者同时留空"
+fi
 
 if [ -z "${QL_URL}" ]; then
     if QL_URL="$(detect_qinglong_url)"; then
         log "已自动发现青龙 Add-on：${QL_URL}"
     else
         QL_URL="http://qinglong:5700"
-        warn "未能通过 Supervisor 自动发现青龙；暂用 ${QL_URL}。可在 Web 控制台或 Add-on 的 ql_url 中手工配置。"
+        warn "未能通过 Supervisor 自动发现青龙；暂用 ${QL_URL}。也可以在 YYB-Go Web 控制台中配置青龙连接。"
     fi
 else
     log "使用手工配置的青龙地址：${QL_URL}"
@@ -139,7 +148,7 @@ if [ -z "${YYB_QINGLONG_SERVER}" ]; then
         log "YYB-Go HAOS 内网地址：${YYB_QINGLONG_SERVER}"
     else
         YYB_QINGLONG_SERVER=""
-        warn "未能自动取得本 Add-on 的 HAOS DNS 名。YYB-Go 本身仍可启动；若一键同步到青龙时地址不正确，请填写 yyb_qinglong_server。"
+        warn "未能自动取得本 Add-on 的 HAOS DNS 名；若同步到青龙的 YYB_SERVER 地址不正确，请手工填写 yyb_qinglong_server。"
     fi
 else
     log "使用手工配置的 YYB_QINGLONG_SERVER：${YYB_QINGLONG_SERVER}"
@@ -147,62 +156,35 @@ fi
 
 prepare_persistent_data
 
-# Supervisor manager access is needed only for startup discovery. Do not pass
-# the high-privilege token to the upstream YYB-Go process or Nginx.
+# Supervisor manager access is needed only during startup discovery. Never pass
+# this high-privilege token to the upstream YYB-Go process.
 unset SUPERVISOR_TOKEN
 
-mkdir -p /etc/nginx/auth
-htpasswd -Bbc /etc/nginx/auth/htpasswd "${WEB_USER}" "${WEB_PASSWORD}" >/dev/null
-chown root:nginx /etc/nginx/auth/htpasswd
-chmod 0640 /etc/nginx/auth/htpasswd
-
+export PANEL_TYPE="qinglong"
 export QL_URL
 export QL_CLIENT_ID
 export QL_CLIENT_SECRET
 export YYB_QINGLONG_SERVER
 export YYB_QINGLONG_REPO
 
-log "启动 YYB-Go 后端：0.0.0.0:8000"
-su-exec yyb:yyb /app/yyb-go \
+# Use upstream's native web authentication. SQLite is persisted through
+# /app/resource/db -> /data/db, including auth.db.
+export YYB_AUTH_DRIVER=sqlite
+export YYB_AUTH_DSN=""
+export YYB_ADMIN_USER
+export YYB_ADMIN_PASSWORD
+export YYB_COOKIE_SECURE
+
+log "启动 YYB-Go：0.0.0.0:8000"
+if [ -n "${YYB_ADMIN_USER}" ]; then
+    log "已配置上游原生管理员初始化账号：${YYB_ADMIN_USER}"
+else
+    log "未预设管理员；首次在 Web 页面注册的账号将由上游设为管理员"
+fi
+
+exec su-exec yyb:yyb /app/yyb-go \
     -host 0.0.0.0 \
     -port 8000 \
     -resource-root /app/resource \
     -keepalive-interval "${KEEPALIVE_INTERVAL}" \
-    -keepalive-ahead "${KEEPALIVE_AHEAD}" &
-YYB_PID=$!
-
-# Give the backend a short opportunity to fail fast before Nginx starts.
-sleep 1
-if ! kill -0 "${YYB_PID}" 2>/dev/null; then
-    if wait "${YYB_PID}"; then status=0; else status=$?; fi
-    fatal "YYB-Go 后端启动失败（退出码 ${status}）"
-fi
-
-log "启动 Nginx Web UI：0.0.0.0:8080"
-nginx -g 'daemon off;' &
-NGINX_PID=$!
-
-cleanup() {
-    trap - INT TERM EXIT
-    kill "${NGINX_PID}" "${YYB_PID}" 2>/dev/null || true
-    wait "${NGINX_PID}" 2>/dev/null || true
-    wait "${YYB_PID}" 2>/dev/null || true
-}
-
-trap cleanup INT TERM EXIT
-
-while :; do
-    if ! kill -0 "${YYB_PID}" 2>/dev/null; then
-        if wait "${YYB_PID}"; then status=0; else status=$?; fi
-        warn "YYB-Go 后端已退出（退出码 ${status}），停止 Add-on"
-        exit "${status}"
-    fi
-
-    if ! kill -0 "${NGINX_PID}" 2>/dev/null; then
-        if wait "${NGINX_PID}"; then status=0; else status=$?; fi
-        warn "Nginx 已退出（退出码 ${status}），停止 Add-on"
-        exit "${status}"
-    fi
-
-    sleep 2
-done
+    -keepalive-ahead "${KEEPALIVE_AHEAD}"

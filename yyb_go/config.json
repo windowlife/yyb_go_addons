@@ -1,8 +1,8 @@
 {
   "name": "YYB-Go Enhanced",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "slug": "yyb_go",
-  "description": "YYB-Go Enhanced 的 Home Assistant OS Add-on 封装，支持微信扫码登录、账号管理、Token 保活和青龙联动。",
+  "description": "YYB-Go Enhanced 的 Home Assistant OS Add-on 封装，采用上游单容器 Web/认证架构，并支持青龙自动发现与持久化。",
   "url": "https://github.com/windowlife/yyb_go_addons",
   "startup": "application",
   "boot": "auto",
@@ -14,33 +14,32 @@
   "hassio_api": true,
   "hassio_role": "manager",
   "ports": {
-    "8080/tcp": 8000
+    "8000/tcp": 8000
   },
   "ports_description": {
-    "8080/tcp": "YYB-Go Web UI（Nginx Basic Auth）"
+    "8000/tcp": "YYB-Go Web UI / API"
   },
-  "webui": "http://[HOST]:[PORT:8080]/",
-  "watchdog": "http://[HOST]:[PORT:8080]/addon-health",
+  "webui": "http://[HOST]:[PORT:8000]/",
+  "watchdog": "http://[HOST]:[PORT:8000]/health",
   "options": {
-    "web_user": "admin",
-    "web_password": null,
     "keepalive_interval": "30m",
     "keepalive_ahead": "45m",
     "ql_url": "",
     "ql_client_id": "",
     "ql_client_secret": "",
-    "yyb_qinglong_server": "",
-    "yyb_qinglong_repo": "SuperNaiBA_YYB-GO-Script,525815266_YYB-Go-Enhanced/scripts"
+    "yyb_qinglong_repo": "SuperNaiBA_YYB-GO-Script,525815266_YYB-Go-Enhanced/scripts",
+    "yyb_cookie_secure": false
   },
   "schema": {
-    "web_user": "match(^[A-Za-z0-9._-]+$)",
-    "web_password": "password",
     "keepalive_interval": "str",
     "keepalive_ahead": "str",
     "ql_url": "str",
     "ql_client_id": "str",
     "ql_client_secret": "password",
-    "yyb_qinglong_server": "str",
-    "yyb_qinglong_repo": "str"
+    "yyb_qinglong_server": "str?",
+    "yyb_qinglong_repo": "str",
+    "yyb_admin_user": "str?",
+    "yyb_admin_password": "password?",
+    "yyb_cookie_secure": "bool"
   }
 }
