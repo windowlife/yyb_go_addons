@@ -2,20 +2,21 @@
 
 ARG YYB_REPO=https://github.com/525815266/YYB-Go-Enhanced.git
 ARG YYB_REF=main
+ARG YYB_CACHE_BUST=1.1.1
 
 FROM golang:1.23-alpine AS build
 
 ARG YYB_REPO
 ARG YYB_REF
+ARG YYB_CACHE_BUST
 
 RUN apk add --no-cache ca-certificates git
 
 WORKDIR /src
 
-ENV GOPROXY=https://goproxy.cn,direct
-
-# Build from the current upstream branch.
-RUN git clone --depth=1 --branch "${YYB_REF}" "${YYB_REPO}" .
+RUN echo "Building YYB-Go ${YYB_REF}, cache=${YYB_CACHE_BUST}" \
+    && git clone --depth=1 --branch "${YYB_REF}" "${YYB_REPO}" . \
+    && git rev-parse HEAD
 
 RUN go mod download
 
