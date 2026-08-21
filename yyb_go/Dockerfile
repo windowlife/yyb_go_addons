@@ -2,21 +2,23 @@
 
 ARG YYB_REPO=https://github.com/525815266/YYB-Go-Enhanced.git
 ARG YYB_REF=main
-ARG YYB_CACHE_BUST=1.1.1
 
 FROM golang:1.23-alpine AS build
 
 ARG YYB_REPO
 ARG YYB_REF
-ARG YYB_CACHE_BUST
 
 RUN apk add --no-cache ca-certificates git
 
 WORKDIR /src
 
-RUN echo "Building YYB-Go ${YYB_REF}, cache=${YYB_CACHE_BUST}" \
+# Copy addon config to invalidate docker cache when addon version changes
+COPY config.json /tmp/addon_config.json
+
+RUN echo "Building YYB-Go from ${YYB_REF}" \
+    && cat /tmp/addon_config.json \
     && git clone --depth=1 --branch "${YYB_REF}" "${YYB_REPO}" . \
-    && git rev-parse HEAD
+    && git rev-parse HEAD > /tmp/YYB_COMMIT
 
 RUN go mod download
 
@@ -27,7 +29,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     ./cmd/yyb-go
 
 RUN mkdir -p /out/resource \
-    && cp -R /src/resource/. /out/resource/
+    && cp -R /src/resource/. /out/resource/ \
+    && cp /tmp/YYB_COMMIT /out/YYB_COMMIT
+
 
 FROM alpine:3.21
 
@@ -43,6 +47,7 @@ WORKDIR /app
 
 COPY --from=build /out/yyb-go /app/yyb-go
 COPY --from=build /out/resource/ /app/resource/
+COPY --from=build /out/YYB_COMMIT /app/YYB_COMMIT
 COPY run.sh /run.sh
 
 RUN chmod 0755 /app/yyb-go /run.sh \
