@@ -8,6 +8,8 @@ FROM golang:1.23-alpine AS build
 ARG YYB_REPO
 ARG YYB_REF
 
+ENV GOPROXY=https://goproxy.cn,direct
+
 RUN apk add --no-cache ca-certificates git
 
 WORKDIR /src
