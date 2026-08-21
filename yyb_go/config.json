@@ -1,6 +1,6 @@
 {
   "name": "YYB-Go Enhanced",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "slug": "yyb_go",
   "description": "YYB-Go Enhanced 的 Home Assistant OS Add-on 封装，采用上游单容器 Web/认证架构，并支持青龙自动发现与持久化。",
   "url": "https://github.com/windowlife/yyb_go_addons",
