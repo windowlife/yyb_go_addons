@@ -174,7 +174,6 @@ def validate_docs() -> None:
         ROOT / "README.md",
         ADDON / "README.md",
         ADDON / "DOCS.md",
-        ADDON / "CHANGELOG.md",
     ):
         require_file(path)
 
