@@ -2,7 +2,7 @@
 
 这是 `YYB-Go Enhanced` 的 Home Assistant OS / Supervisor App 封装。
 
-## 1.1.0 主要特点
+## 主要特点
 
 - 跟随上游单容器架构，只运行一个 YYB-Go 进程。
 - 容器直接监听 `8000`，HAOS 默认映射到宿主 `8000`。
